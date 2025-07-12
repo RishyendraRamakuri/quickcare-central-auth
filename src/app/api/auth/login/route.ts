@@ -1,43 +1,31 @@
 import { type NextRequest, NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
+import { findHospitalById, findAdminByCredentials, updateLastLogin } from "@/lib/database"
 
-const JWT_SECRET = process.env.JWT_SECRET || "quickcare-dileepkumar09956-rishi31"
-
-// Hospital database (in production, use a real database)
-const hospitals = [
-  {
-    id: "hospital_a",
-    name: "Hospital A",
-    url: "https://quickcare-hospa-production.up.railway.app",
-    admins: [{ username: "admin", password: "admin123" }],
-  },
-  {
-    id: "hospital_b",
-    name: "Hospital B",
-    url: "https://quickcare-hospb-production.up.railway.app",
-    admins: [{ username: "admin", password: "admin123" }],
-  },
-]
+const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-in-production"
 
 export async function POST(request: NextRequest) {
   try {
     const { hospitalId, username, password } = await request.json()
 
     // Find hospital
-    const hospital = hospitals.find((h) => h.id === hospitalId)
+    const hospital = findHospitalById(hospitalId)
     if (!hospital) {
       return NextResponse.json(
         {
           success: false,
-          message: "Hospital not found",
+          message: "Hospital not found or inactive",
         },
         { status: 404 },
       )
     }
 
     // Validate credentials
-    const admin = hospital.admins.find((a) => a.username === username && a.password === password)
+    const admin = findAdminByCredentials(hospitalId, username, password)
     if (!admin) {
+      // Log failed login attempt
+      console.log(`Failed login attempt for hospital ${hospitalId}, username: ${username}, IP: ${request.ip}`)
+
       return NextResponse.json(
         {
           success: false,
@@ -47,12 +35,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate real JWT token
+    // Update last login
+    updateLastLogin(admin.id)
+
+    // Log successful login
+    console.log(`Successful login for hospital ${hospitalId}, username: ${username}, role: ${admin.role}`)
+
+    // Generate JWT token with role information
     const token = jwt.sign(
       {
         hospitalId,
         username,
-        role: "admin",
+        role: admin.role,
+        adminId: admin.id,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 8 * 60 * 60, // 8 hours
       },
@@ -66,6 +61,11 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Login successful",
       redirectUrl,
+      user: {
+        username: admin.username,
+        role: admin.role,
+        hospitalName: hospital.name,
+      },
     })
   } catch (error) {
     console.error("Login error:", error)
