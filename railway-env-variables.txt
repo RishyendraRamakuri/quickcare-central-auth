@@ -1,0 +1,8 @@
+HOSPITAL_ID=hospital_a
+HOSPITAL_NAME=Hospital A
+MONGO_URI=your_mongodb_connection_string
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+JWT_SECRET=your-super-secret-jwt-key
+NODE_ENV=production
+PORT=3001
